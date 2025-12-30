@@ -5,7 +5,8 @@
  * Includes 50+ real exercises organized by muscle group.
  */
 
-import * as SQLite from 'expo-sqlite';
+// Database type - uses any to avoid importing expo-sqlite on web
+type SQLiteDatabase = any;
 import { generateUUID } from './utils';
 
 // Muscle group seed data with consistent IDs for reference
@@ -119,10 +120,10 @@ const workouts: WorkoutSeed[] = [
  * Seeds muscle groups into the database.
  * Skips if data already exists to prevent duplicates.
  */
-export function seedMuscleGroups(db: SQLite.SQLiteDatabase): void {
-  const existingCount = db.getFirstSync<{ count: number }>(
+export function seedMuscleGroups(db: SQLiteDatabase): void {
+  const existingCount = db.getFirstSync(
     'SELECT COUNT(*) as count FROM muscle_groups'
-  );
+  ) as { count: number } | null;
 
   if (existingCount && existingCount.count > 0) {
     // Already seeded
@@ -146,10 +147,10 @@ export function seedMuscleGroups(db: SQLite.SQLiteDatabase): void {
  * Seeds workouts into the database.
  * Skips if data already exists to prevent duplicates.
  */
-export function seedWorkouts(db: SQLite.SQLiteDatabase): void {
-  const existingCount = db.getFirstSync<{ count: number }>(
+export function seedWorkouts(db: SQLiteDatabase): void {
+  const existingCount = db.getFirstSync(
     'SELECT COUNT(*) as count FROM workouts WHERE is_custom = 0'
-  );
+  ) as { count: number } | null;
 
   if (existingCount && existingCount.count > 0) {
     // Already seeded
@@ -174,7 +175,7 @@ export function seedWorkouts(db: SQLite.SQLiteDatabase): void {
  * Seeds all data into the database.
  * Safe to call multiple times - checks for existing data.
  */
-export function seedDatabase(db: SQLite.SQLiteDatabase): void {
+export function seedDatabase(db: SQLiteDatabase): void {
   seedMuscleGroups(db);
   seedWorkouts(db);
 }
@@ -182,7 +183,7 @@ export function seedDatabase(db: SQLite.SQLiteDatabase): void {
 /**
  * Clears all seed data (for testing/development)
  */
-export function clearSeedData(db: SQLite.SQLiteDatabase): void {
+export function clearSeedData(db: SQLiteDatabase): void {
   db.execSync('DELETE FROM weight_entries');
   db.execSync('DELETE FROM workouts WHERE is_custom = 0');
   db.execSync('DELETE FROM muscle_groups');
