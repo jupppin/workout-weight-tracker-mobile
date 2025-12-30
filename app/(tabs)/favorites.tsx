@@ -5,13 +5,14 @@
  *
  * Features:
  * - List of favorited workouts
+ * - Filter by muscle group
  * - Empty state when no favorites
  * - Tap to navigate to workout detail
  * - Swipe or button to unfavorite
  * - Theme-aware styling
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -20,15 +21,16 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, borderRadius } from '../../theme';
-import { WorkoutListItem } from '../../components';
+import { WorkoutListItem, FilterChip } from '../../components';
 import { useDatabaseContext } from '../../hooks';
 import { useTheme } from '../../context';
-import { getFavorites, toggleFavorite } from '../../database/queries';
-import type { WorkoutWithMuscleGroup } from '../../database/schema';
+import { getFavorites, toggleFavorite, getMuscleGroups } from '../../database/queries';
+import type { WorkoutWithMuscleGroup, MuscleGroup } from '../../database/schema';
 
 /**
  * Empty state component when no favorites
@@ -61,16 +63,22 @@ export default function FavoritesScreen() {
 
   // State
   const [favorites, setFavorites] = useState<WorkoutWithMuscleGroup[]>([]);
+  const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Load favorites
+  // Load favorites and muscle groups
   const loadFavorites = useCallback(() => {
     if (!db || !userId) return;
 
     try {
       const data = getFavorites(db, userId);
       setFavorites(data);
+
+      // Load muscle groups for filtering
+      const groups = getMuscleGroups(db);
+      setMuscleGroups(groups);
     } catch (error) {
       console.error('Error loading favorites:', error);
     } finally {
@@ -78,6 +86,23 @@ export default function FavoritesScreen() {
       setIsRefreshing(false);
     }
   }, [db, userId]);
+
+  // Filter favorites by selected muscle group
+  const filteredFavorites = useMemo(() => {
+    if (!selectedMuscleGroup) return favorites;
+    return favorites.filter((w) => w.muscle_group_id === selectedMuscleGroup);
+  }, [favorites, selectedMuscleGroup]);
+
+  // Get unique muscle groups from favorites for filter options
+  const availableMuscleGroups = useMemo(() => {
+    const favoriteGroupIds = new Set(favorites.map((w) => w.muscle_group_id));
+    return muscleGroups.filter((mg) => favoriteGroupIds.has(mg.id));
+  }, [favorites, muscleGroups]);
+
+  // Handle muscle group filter selection
+  const handleMuscleGroupSelect = useCallback((muscleGroupId: string | null) => {
+    setSelectedMuscleGroup(muscleGroupId);
+  }, []);
 
   // Load on mount
   useEffect(() => {
@@ -129,12 +154,12 @@ export default function FavoritesScreen() {
         name={item.name}
         muscleGroupName={item.muscle_group_name}
         onPress={handleWorkoutPress}
-        isLast={index === favorites.length - 1}
+        isLast={index === filteredFavorites.length - 1}
         isFavorite={true}
         onFavoriteToggle={handleFavoriteToggle}
       />
     ),
-    [handleWorkoutPress, handleFavoriteToggle, favorites.length]
+    [handleWorkoutPress, handleFavoriteToggle, filteredFavorites.length]
   );
 
   // Loading state
@@ -151,11 +176,53 @@ export default function FavoritesScreen() {
     );
   }
 
+  // Empty state message based on context
+  const getEmptyMessage = () => {
+    if (selectedMuscleGroup && favorites.length > 0) {
+      const muscleGroup = muscleGroups.find((mg) => mg.id === selectedMuscleGroup);
+      return {
+        title: `No ${muscleGroup?.name || ''} favorites`,
+        subtitle: 'Try selecting a different muscle group or add more favorites.',
+      };
+    }
+    return {
+      title: 'No favorites yet',
+      subtitle: 'Tap the heart on any workout to add it here for quick access.',
+    };
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {favorites.length > 0 ? (
+      {/* Filter chips - only show if there are favorites */}
+      {favorites.length > 0 && availableMuscleGroups.length > 0 && (
+        <View style={[styles.filterHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <FilterChip
+              label="All"
+              selected={selectedMuscleGroup === null}
+              onPress={() => handleMuscleGroupSelect(null)}
+            />
+            {availableMuscleGroups.map((mg) => (
+              <FilterChip
+                key={mg.id}
+                label={mg.name}
+                selected={selectedMuscleGroup === mg.id}
+                onPress={() => handleMuscleGroupSelect(mg.id)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Content */}
+      {filteredFavorites.length > 0 ? (
         <FlatList
-          data={favorites}
+          data={filteredFavorites}
           renderItem={renderWorkoutItem}
           keyExtractor={(item) => item.id}
           style={styles.list}
@@ -170,6 +237,17 @@ export default function FavoritesScreen() {
             />
           }
         />
+      ) : favorites.length > 0 ? (
+        // Show filtered empty state
+        <View style={styles.emptyContainer}>
+          <Ionicons name="filter-outline" size={64} color={colors.textTertiary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            {getEmptyMessage().title}
+          </Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+            {getEmptyMessage().subtitle}
+          </Text>
+        </View>
       ) : (
         <EmptyFavorites colors={colors} />
       )}
@@ -189,6 +267,13 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: spacing.md,
     fontSize: typography.fontSize.base,
+  },
+  filterHeader: {
+    borderBottomWidth: 1,
+    paddingVertical: spacing.md,
+  },
+  filterContent: {
+    paddingHorizontal: spacing.lg,
   },
   list: {
     flex: 1,

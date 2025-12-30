@@ -37,6 +37,9 @@ export {
 } from './SegmentedControl';
 export { ConfirmDialog } from './ConfirmDialog';
 
+// Modals
+export { AddExerciseModal } from './AddExerciseModal';
+
 // Auth components
 export {
   AppleSignInButton,

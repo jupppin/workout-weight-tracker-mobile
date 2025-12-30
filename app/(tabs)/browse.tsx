@@ -23,14 +23,17 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { spacing, typography, borderRadius } from '../../theme';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { spacing, typography, borderRadius, touchTargets } from '../../theme';
 import {
   SearchBar,
   FilterChip,
   WorkoutListItem,
   EmptyWorkoutList,
+  AddExerciseModal,
 } from '../../components';
 import { useDatabaseContext, useSearch } from '../../hooks';
 import { useTheme } from '../../context';
@@ -40,6 +43,7 @@ import {
   getWorkoutsByMuscleGroup,
   getFavoriteIds,
   toggleFavorite,
+  createCustomWorkout,
 } from '../../database/queries';
 import type { MuscleGroup, WorkoutWithMuscleGroup } from '../../database/schema';
 
@@ -48,6 +52,7 @@ import type { MuscleGroup, WorkoutWithMuscleGroup } from '../../database/schema'
  */
 export default function BrowseScreen() {
   const router = useRouter();
+  const { muscleGroup: muscleGroupParam } = useLocalSearchParams<{ muscleGroup?: string }>();
   const { db, isLoading: dbLoading, userId } = useDatabaseContext();
   const { colors } = useTheme();
 
@@ -57,6 +62,7 @@ export default function BrowseScreen() {
   const [allWorkouts, setAllWorkouts] = useState<WorkoutWithMuscleGroup[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Load muscle groups and favorites on mount
   useEffect(() => {
@@ -102,6 +108,18 @@ export default function BrowseScreen() {
     debounceMs: 300,
     initialResults: allWorkouts,
   });
+
+  // Apply muscle group filter from navigation param when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (muscleGroupParam) {
+        setSelectedMuscleGroup(muscleGroupParam);
+        // Clear search when applying filter from param
+        clearSearch();
+        setSearchQuery('');
+      }
+    }, [muscleGroupParam, clearSearch])
+  );
 
   // Filter workouts by muscle group
   const filteredByMuscleGroup = useMemo(() => {
@@ -215,6 +233,31 @@ export default function BrowseScreen() {
       }
     },
     [db, userId]
+  );
+
+  // Handle creating a custom exercise
+  const handleCreateExercise = useCallback(
+    async (name: string, muscleGroupId: string): Promise<boolean> => {
+      if (!db || !userId) return false;
+
+      try {
+        const newWorkout = createCustomWorkout(db, name, muscleGroupId, userId);
+
+        // Reload all workouts to include the new one
+        const workouts = searchWorkouts(db, '', 100);
+        setAllWorkouts(workouts);
+
+        // Navigate to log the new workout
+        router.push(`/log/${newWorkout.id}`);
+
+        return true;
+      } catch (error) {
+        console.error('Error creating custom workout:', error);
+        Alert.alert('Error', 'Failed to create exercise. Please try again.');
+        return false;
+      }
+    },
+    [db, userId, router]
   );
 
   // Render workout item
@@ -338,6 +381,26 @@ export default function BrowseScreen() {
           <EmptyWorkoutList {...getEmptyMessage()} />
         </View>
       )}
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => setShowAddModal(true)}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Add custom exercise"
+      >
+        <Ionicons name="add" size={28} color={colors.text} />
+      </TouchableOpacity>
+
+      {/* Add Exercise Modal */}
+      <AddExerciseModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleCreateExercise}
+        muscleGroups={muscleGroups}
+        initialMuscleGroupId={selectedMuscleGroup}
+      />
     </SafeAreaView>
   );
 }
@@ -389,5 +452,20 @@ const styles = StyleSheet.create({
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
+    width: touchTargets.large,
+    height: touchTargets.large,
+    borderRadius: touchTargets.large / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });

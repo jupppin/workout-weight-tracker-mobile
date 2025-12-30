@@ -327,11 +327,13 @@ export default function SettingsScreen() {
             label="Weight Unit"
             icon="barbell-outline"
           >
-            <SegmentedControl
-              options={WEIGHT_UNIT_OPTIONS}
-              selectedValue={currentWeightUnit}
-              onValueChange={handleWeightUnitChange}
-            />
+            <View style={styles.segmentedControlWrapper}>
+              <SegmentedControl
+                options={WEIGHT_UNIT_OPTIONS}
+                selectedValue={currentWeightUnit}
+                onValueChange={handleWeightUnitChange}
+              />
+            </View>
           </SettingsRow>
 
           <SettingsRow
@@ -340,11 +342,13 @@ export default function SettingsScreen() {
             icon="moon-outline"
             isLast
           >
-            <SegmentedControl
-              options={THEME_OPTIONS}
-              selectedValue={currentTheme}
-              onValueChange={handleThemeChange}
-            />
+            <View style={styles.segmentedControlWrapper}>
+              <SegmentedControl
+                options={THEME_OPTIONS}
+                selectedValue={currentTheme}
+                onValueChange={handleThemeChange}
+              />
+            </View>
           </SettingsRow>
         </SettingsSection>
 
@@ -519,5 +523,10 @@ const styles = StyleSheet.create({
 
   footer: {
     height: spacing.xl,
+  },
+
+  // Segmented control wrapper with constrained width
+  segmentedControlWrapper: {
+    width: 140,
   },
 });
