@@ -113,7 +113,7 @@ export function createTables(db: SQLiteDatabase): void {
       user_id TEXT NOT NULL,
       workout_id TEXT NOT NULL,
       weight REAL NOT NULL,
-      reps INTEGER DEFAULT 7,
+      reps INTEGER DEFAULT 8,
       notes TEXT,
       recorded_at TEXT DEFAULT CURRENT_TIMESTAMP,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,

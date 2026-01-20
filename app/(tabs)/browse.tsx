@@ -12,7 +12,7 @@
  * - Theme-aware styling
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -25,7 +25,7 @@ import {
   Keyboard,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, borderRadius, touchTargets } from '../../theme';
 import {
@@ -109,17 +109,19 @@ export default function BrowseScreen() {
     initialResults: allWorkouts,
   });
 
-  // Apply muscle group filter from navigation param when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      if (muscleGroupParam) {
-        setSelectedMuscleGroup(muscleGroupParam);
-        // Clear search when applying filter from param
-        clearSearch();
-        setSearchQuery('');
-      }
-    }, [muscleGroupParam, clearSearch])
-  );
+  // Track if we've applied the initial param
+  const lastAppliedParam = useRef<string | null>(null);
+
+  // Apply muscle group filter from navigation param only when it changes
+  useEffect(() => {
+    if (muscleGroupParam && muscleGroupParam !== lastAppliedParam.current) {
+      lastAppliedParam.current = muscleGroupParam;
+      setSelectedMuscleGroup(muscleGroupParam);
+      // Clear search when applying filter from param
+      clearSearch();
+      setSearchQuery('');
+    }
+  }, [muscleGroupParam, clearSearch]);
 
   // Filter workouts by muscle group
   const filteredByMuscleGroup = useMemo(() => {

@@ -51,13 +51,13 @@ import { formatDate, convertWeight } from '../../database/utils';
 import type { WorkoutWithMuscleGroup, WeightEntry } from '../../database/schema';
 
 // Rep options for the rep selector
-const REP_OPTIONS = [5, 6, 7, 8, 9, 10];
-const DEFAULT_REPS = 7;
+const REP_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const DEFAULT_REPS = 8;
 const DEFAULT_WEIGHT = 135;
 
 /**
  * Rep Selector Component
- * Horizontal pill selector for rep count
+ * Horizontal scrollable picker for rep count
  */
 function RepSelector({
   selectedReps,
@@ -68,16 +68,40 @@ function RepSelector({
   onSelect: (reps: number) => void;
   colors: any;
 }) {
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const ITEM_WIDTH = 56;
+  const ITEM_SPACING = spacing.sm;
+
+  // Scroll to selected rep on mount
+  useEffect(() => {
+    const index = REP_OPTIONS.indexOf(selectedReps);
+    if (index !== -1 && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          x: index * (ITEM_WIDTH + ITEM_SPACING),
+          animated: false,
+        });
+      }, 100);
+    }
+  }, []);
+
   return (
     <View style={repStyles.container}>
       <Text style={[repStyles.label, { color: colors.textSecondary }]}>Reps</Text>
-      <View style={repStyles.pills}>
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={repStyles.scrollContent}
+        snapToInterval={ITEM_WIDTH + ITEM_SPACING}
+        decelerationRate="fast"
+      >
         {REP_OPTIONS.map((rep) => (
           <Pressable
             key={rep}
             style={[
               repStyles.pill,
-              { backgroundColor: colors.surface },
+              { backgroundColor: colors.surface, width: ITEM_WIDTH },
               selectedReps === rep && { backgroundColor: colors.primary },
             ]}
             onPress={() => onSelect(rep)}
@@ -96,7 +120,7 @@ function RepSelector({
             </Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -112,18 +136,15 @@ const repStyles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  pills: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
   pill: {
-    minWidth: touchTargets.minimum,
     height: touchTargets.minimum,
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
   },
   pillText: {
     fontSize: typography.fontSize.lg,

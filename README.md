@@ -5,9 +5,10 @@ A mobile-first app for tracking progressive overload in weight training. Built w
 ## Features
 
 - Fast workout logging with minimal taps
+- Expanded rep range (1-12) with horizontal scrollable picker
 - Offline-first local database (SQLite)
 - Apple Sign In and Google Sign In support
-- Browse workouts by muscle group
+- Browse workouts by muscle group with persistent filter state
 - Favorites and recent workouts
 - Dark mode by default
 
